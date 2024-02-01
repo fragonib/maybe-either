@@ -1,6 +1,6 @@
 import { Container } from "./container"
 
-describe("Functor Container", () => {
+describe("Container", () => {
   it("can host any value", () => {
     expect(Container.of(3).toString())
       .toEqual('Container(3)');

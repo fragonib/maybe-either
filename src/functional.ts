@@ -1,3 +1,6 @@
+export const compose = <T>(...functionList: Function[]) => (value: T) =>
+  functionList.reduceRight((result, fn) => fn(result), value);
+
 export const curry = (fn: Function) => {
   const arity = fn.length;
   return function $curry(...args: any[]): Function {
@@ -8,11 +11,8 @@ export const curry = (fn: Function) => {
   };
 }
 
-export const compose = <T>(...functionList: Function[]) => (value: T) => 
-  functionList.reduceRight((result, fn) => fn(result), value);
-
 export type Functor = {
   map: (fn: Function) => Functor
 }
 
-export const map = (fn: (i: any) => any) => (anyFunctor: Functor) => anyFunctor.map(fn);
+export const map = (fn: Function) => (anStructure: Functor) => anStructure.map(fn);

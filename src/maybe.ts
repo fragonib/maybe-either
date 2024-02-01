@@ -24,4 +24,4 @@ export class Maybe<T> {
   }
 }
 
-export const safeHead = <T>(xs: T[]) => Maybe.of(xs[0]);
+export const safeHead = <T>(list: T[]) => Maybe.of(list[0]);
