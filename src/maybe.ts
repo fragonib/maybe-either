@@ -4,8 +4,11 @@ import { Functor } from "./functional";
 export type Maybe<T> = Nothing<T> | Just<T>;
 
 export namespace Maybe {
-  export const of = <T>(value: T): Maybe<T> => {
-    return value ? new Just(value as NonNullable<T>): new Nothing<T>();
+  export const of = <T>(value: T): Maybe<NonNullable<T>> => {
+    const a = value ?  
+      new Just(value as unknown as NonNullable<T>) :
+      new Nothing<NonNullable<T>>();
+      return a as Maybe<NonNullable<T>>;
   }
 }
 
@@ -21,6 +24,14 @@ export class Just<T> implements Inspectable, Functor<T> {
     return Maybe.of(fn(this.$value));
   }
 
+  join<R>(fn: (value: NonNullable<T>) => Maybe<R>) {
+    return fn(this.$value);
+  }
+
+  getOrElse(defaultValue: NonNullable<T>): NonNullable<T> {
+    return this.$value;
+  }
+
   inspect() {
     const valueInspect =
       typeof this.$value === "object" && 'inspect' in this.$value ?
@@ -33,8 +44,16 @@ export class Just<T> implements Inspectable, Functor<T> {
 
 export class Nothing<T> implements Inspectable, Functor<T> {
 
-  map<R>(fn: (value: never) => R): Maybe<R> {
-    return this;
+  map<R>(fn: (value: NonNullable<T>) => R): Maybe<R> {
+    return new Nothing<R>();
+  }
+
+  join<R>(fn: (value: NonNullable<T>) => Maybe<R>) {
+    return new Nothing<R>();
+  }
+
+  getOrElse(defaultValue: NonNullable<T>): NonNullable<T> {
+    return defaultValue;
   }
 
   inspect() {
