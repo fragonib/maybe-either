@@ -1,4 +1,4 @@
-interface Inspectable {
+export interface Inspectable {
   inspect(): string;
 }
 
