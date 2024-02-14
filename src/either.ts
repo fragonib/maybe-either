@@ -25,8 +25,8 @@ export class Right<R> {
 
   $value: R;
 
-  constructor(error: R) {
-    this.$value = error;
+  constructor(value: R) {
+    this.$value = value;
   }
 
   static of<R>(value: R) {
