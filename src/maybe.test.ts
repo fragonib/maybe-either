@@ -21,7 +21,7 @@ describe("Maybe Container", () => {
   it("can deal when map returns a null", () => {
     expect(
       Maybe.of({ name: 'Boris' })
-        .map(prop<Person>('age'))
+        .map(prop<number>('age'))
         .map(add(10))
         .inspect()
     ).toBe('Nothing');
@@ -30,7 +30,7 @@ describe("Maybe Container", () => {
   it("can host any value", () => {
     expect(
       Maybe.of({ name: 'Dinah', age: 14 })
-        .map(prop<Person>('age'))
+        .map(prop<number>('age'))
         .map(add(10))
         .inspect()
     ).toBe('Just(24)');
@@ -47,11 +47,12 @@ type Person = {
 export const add = (a: number) => (b: number) => a + b;
 export const match = (what: RegExp) => (str: string) => what.test(str);
 
-type PropType<T, K extends keyof T> = T[K];
-export const prop = <T>(name: keyof T) => (obj: T): PropType<T, typeof name> => obj[name]
+export type Obj = { [key: string]: any };
+export const prop = <T>(name: string) => (obj: Obj): T | undefined => obj[name];
 
+type PropType<T, K extends keyof T> = T[K];
 const name = 'age';
-let pepe: PropType<Person, typeof name> = 5;
 const person: Person = { name: 'Dinah', age: 14 }
-const a: string | number | undefined = prop<Person>('age')(person)
+const age: PropType<Person, typeof name> = 5;
+const age2: number | undefined = prop<number>('age')(person)
 

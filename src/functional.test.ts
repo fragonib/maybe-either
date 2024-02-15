@@ -1,13 +1,13 @@
 import { compose, map } from "./functional";
 import { Maybe } from "./maybe";
 
-describe("Maybe Container", () => {
+describe("Functions", () => {
 
   it("can be composed", async () => {
-    const streetName: (person: Person) => Maybe<Address> = 
+    const streetName: (person: Person) => Maybe<string> = 
       compose(
-        // map(prop<Address>('street')),
-        prop<Person>('addresses'),
+        map(prop<string>('street')),
+        prop<Address>('addresses'),
       );
         
     expect(streetName({ 
@@ -36,8 +36,8 @@ type Address = {
   number: number;
 }
 
-const prop = <T>(name: keyof T) => (obj: T): T[keyof T] => obj[name]
 
-// infer the type of a property from a record given the name of the property
-type PropType<T, K extends keyof T> = T[K];
-const a : PropType<Person, 'addresses'> = [];
+export type Obj = { [key: string]: any };
+export const prop = <T>(name: string) => (obj: Obj): Maybe<T> => obj[name];
+const a = prop<string>('street')
+const b = prop<Address>('addresses')

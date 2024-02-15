@@ -1,102 +1,135 @@
 import * as fs from 'fs';
-import { Maybe } from '../maybe';
+import { Just, Maybe, Nothing } from '../maybe';
 
-type CalcState = {
-    variablesMap: Map<string, number>,
-    valuesMap: Map<number, string>,
+export class CalcState {
+    variablesMap: Map<string, number> = new Map();
+    valuesMap: Map<number, string> = new Map();
 }
-type ExpressionResult = string
+export type CommandResult = Maybe<string> | CalcState
 
-export const solve = (expressions: string[]): ExpressionResult[] => {
-    const initialState: CalcState = {
-        variablesMap: new Map(),
-        valuesMap: new Map()
-    };
-    return calcExpressions(expressions, initialState);
+/**
+ * Pseudocode:
+ * 
+ * const calculate = () => {
+ *     calcLine
+ *      .chain(
+ *         parseCommand
+ *             .chain((command) => {
+ *                 switch(command) {
+ *                     case "def": return defCommand();
+ *                     case "clear": return clearCommand();
+ *                     case "calc": return calcCommand();
+ *                 }
+ *             })
+ *     )
+ *     .fold(
+ *         something: console.log,
+ *         nothing: console.error
+ *     )
+ * }
+ */
+const main = (): void => {
+    const problem = readInputLines();
+    const solution: string[] = solve(problem)
+    console.log(writeOutput(solution));
 };
 
-const calcExpressions = (expressions: string[], state: CalcState): ExpressionResult[] => {
-    if (expressions.length === 0) return [];
-    const [expr, ...restOfExprs] = expressions
+export const solve = (expressions: string[]): string[] => {
+    return resolveCommands(expressions, initialState())
+        .map((exprResult) => exprResult.getOrElse("unknown"));
+};
 
-    const [command, ...args] = expr.split(" ");
-    switch (command) {
-        case "def": {
-            const [varName, valueStr] = args;
-            const value = parseInt(valueStr);
-            storeVariable(varName, value, state);
-            return calcExpressions(restOfExprs, state);
+export const resolveCommands = (expressions: string[], initialState: CalcState): Maybe<string>[] => {
+    const initialResult: [CalcState, Maybe<string>[]] = [initialState, []];
+    const [_finalState, results] = fold(expressions, initialResult, (acc, expr: string) => {
+        const [state, results] = acc;
+        const result: CommandResult = resolveCommand(expr, state);
+        switch (result.constructor) {
+            case Just:
+            case Nothing: return [state, results.concat([result as Maybe<string>])];
+            case CalcState: return [clearState(state), results];
+            default: return [state, results];
         }
-        case "clear": {
-            clearState(state);
-            return calcExpressions(restOfExprs, state);
-        }
-        case "calc": {
-            const result = calcExpression(args, state)
-                .join((value) => getValueName(value, state))
-                .getOrElse("unknown");
-            return [result, ...calcExpressions(restOfExprs, state)];
-        }
-        default:
-            return [];
+    });
+    return results;
+}
+
+const resolveCommand = (command: string, state: CalcState): CommandResult => {
+    const [verb, ...commandArgs] = command.split(" ");
+    switch (verb) {
+        case "def": return defVariable(commandArgs, state);
+        case "clear": return clearState(state);
+        case "calc": return calcExpression(commandArgs, state);
+        default: return state;
     }
+};
+
+const defVariable = (expression: string[], state: CalcState): CalcState => {
+    const [varName, valueStr] = expression;
+    const varValue = parseInt(valueStr);
+    const { variablesMap, valuesMap } = state;
+    return {
+        variablesMap: variablesMap.set(varName, varValue),
+        valuesMap: valuesMap.set(varValue, varName)
+    };
+};
+
+const clearState = (_currentState: CalcState): CalcState => {
+    return initialState();
 };
 
 const calcExpression = (
     expression: string[],
     state: CalcState
-): Maybe<number> => {
-    
-    function helper(initValue: Maybe<number>, acc: string[], state: CalcState): Maybe<number> {
-        if (acc.length === 0) return initValue;
-        const [operator, targetVarName, ...restEx] = acc
-        const targetValue = readVariable(targetVarName, state);
-        if (operator === "+")
-            return helper(initValue.join((v) => targetValue.map(add(v))), restEx, state);
-        if (operator === "-")
-            return helper(initValue.join((v) => targetValue.map(subtract(v))), restEx, state);
-        return initValue;
+): Maybe<string> => {
+    const [firstVarName, ...rest] = expression;
+    const firstVarValue = getVariableValue(firstVarName, state);
+    return doCalc(firstVarValue, rest, state)
+        .chain((v) => getResultName(v, state));
+};
+
+const doCalc = (accValue: Maybe<number>, expression: string[], state: CalcState): Maybe<number> => {
+
+    const add = (a: number) => (b: number): number => a + b;
+    const subtract = (a: number) => (b: number): number => a - b;
+
+    const [operator, targetVarName, ...restEx] = expression;
+    const targetValue = getVariableValue(targetVarName, state);
+    switch (operator) {
+        case "+": {
+            const newExprValue = accValue.chain((v) => targetValue.map(add(v)));
+            return doCalc(newExprValue, restEx, state);
+        }
+        case "-": {
+            const newExprValue = accValue.chain((v) => targetValue.map(subtract(v)));
+            return doCalc(newExprValue, restEx, state);
+        }
+        default: return accValue;
     }
-
-    const [varName, ...rest] = expression;
-    const varValue = readVariable(varName, state);
-    return helper(varValue, rest, state);
 };
 
-const add = (a: number) => (b: number): number => a + b;
-const subtract = (a: number) => (b: number): number => a - b;
-
-const storeVariable = (varName: string, value: number, state: CalcState): void => {
-    const { variablesMap, valuesMap } = state;
-    variablesMap.set(varName, value);
-    valuesMap.set(value, varName);
+const initialState = (): CalcState => {
+    return {
+        variablesMap: new Map(),
+        valuesMap: new Map()
+    };
 };
 
-const getValueName = (value: number, state: CalcState): Maybe<string> => {
-    const { valuesMap } = state;
-    return Maybe.of(valuesMap.get(value));
-};
-
-const readVariable = (varName: string, state: CalcState): Maybe<number> => {
+const getVariableValue = (varName: string, state: CalcState): Maybe<number> => {
     const { variablesMap } = state;
     return Maybe.of(variablesMap.get(varName));
 };
 
-const clearState = (state: CalcState): void => {
-    const { variablesMap, valuesMap } = state;
-    variablesMap.clear();
-    valuesMap.clear();
+const getResultName = (value: number, state: CalcState): Maybe<string> => {
+    const { valuesMap } = state;
+    return Maybe.of(valuesMap.get(value));
 };
 
-export const readInputLines = (): string[] =>
-    fs.readFileSync('./src/addingWords/adding-words.in', 'utf8')
-        .split("\n");
+const readInputLines = (): string[] => fs.readFileSync('./src/addingWords/adding-words.in', 'utf8')
+    .split("\n");
 
-const writeOutput = (output: string[]) => 
-    output.join("\n");
+const writeOutput = (output: string[]) => output.join("\n");
 
-const main = (): void => {
-    const problem = readInputLines();
-    const solution: ExpressionResult[] = solve(problem);
-    console.log(writeOutput(solution));
+const fold = <T, U>(arr: T[], initial: U, f: (acc: U, val: T) => U): U => {
+    return arr.reduce(f, initial);
 };

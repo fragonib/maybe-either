@@ -24,7 +24,7 @@ export class Just<T> implements Inspectable, Functor<T> {
     return Maybe.of(fn(this.$value));
   }
 
-  join<R>(fn: (value: NonNullable<T>) => Maybe<R>) {
+  chain<R>(fn: (value: NonNullable<T>) => Maybe<R>) {
     return fn(this.$value);
   }
 
@@ -48,7 +48,7 @@ export class Nothing<T> implements Inspectable, Functor<T> {
     return new Nothing<R>();
   }
 
-  join<R>(fn: (value: NonNullable<T>) => Maybe<R>) {
+  chain<R>(fn: (value: NonNullable<T>) => Maybe<R>) {
     return new Nothing<R>();
   }
 
